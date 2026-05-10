@@ -40,7 +40,6 @@ That's it. Your app has messaging.
 
 ```bash
 git clone https://github.com/MaweuPaul/relay.git
-cd relay
 cp .env.example .env
 go run main.go
 ```
