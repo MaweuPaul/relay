@@ -1,4 +1,4 @@
-module main.go
+module github.com/MaweuPaul/relay
 
 go 1.26.2
 
