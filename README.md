@@ -1,31 +1,54 @@
 # Relay
 
-> Takes a message from one client. Sends it to everyone else. That's it.
+> A basic TCP server that receives messages from clients and logs them to the console.
 
-Built in Go. Concurrent by default. Drop it into any application that needs real-time messaging.
+Built in Go.
 
 ---
 
 ## Quick Start
 
-```go
-import "github.com/MaweuPaul/relay"
+You can use Relay as a Go library. The module path is `github.com/MaweuPaul/relay`.
 
-server := relay.NewServer()
-server.Listen(":9090")
+### Server
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/MaweuPaul/relay/relay"
+)
+
+func main() {
+	server := relay.NewServer()
+	// Listen() reads the PORT from your environment or defaults to 8080
+	if err := server.Listen(); err != nil {
+		log.Fatal(err)
+	}
+}
 ```
 
-That's it. Your app has messaging.
+### Client
 
----
+```go
+package main
 
-## What's happening underneath
+import (
+	"log"
 
-- Goroutine per connected client
-- Channel based message broadcasting
-- Concurrent safe connection management
-- Automatic cleanup on disconnect
-- Handles thousands of simultaneous connections
+	"github.com/MaweuPaul/relay/relay"
+)
+
+func main() {
+	client := relay.NewClient()
+	// Connect() dials HOST:PORT from your environment
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
+}
+```
 
 ---
 
@@ -33,67 +56,69 @@ That's it. Your app has messaging.
 
 ### Prerequisites
 
-- Go 1.21+
+- Go 1.26.2+
 - Git
 
 ### Running locally
 
 ```bash
 git clone https://github.com/MaweuPaul/relay.git
+cd relay
 cp .env.example .env
-go run main.go
+
+# Run the server
+go run cmd/server/main.go
 ```
 
-### Environment variables
-
-| Variable | Default   | Description                |
-| -------- | --------- | -------------------------- |
-| PORT     | 9090      | Port the server listens on |
-| HOST     | localhost | Host the server runs on    |
-
-### Testing the connection
-
-**Mac/Linux:**
+In a separate terminal, run the test client:
 
 ```bash
-telnet localhost 9090
+# Run the client
+go run cmd/client/main.go
 ```
 
-**Windows — run the built in test client:**
+Type a message in the client terminal and hit enter. You should see it appear in the server terminal as `Received message from client: <message>`.
 
-```bash
-go run client/main.go
-```
+### Environment Variables
 
-Type a message and hit enter. You should see it appear in the server terminal.
+Configure your server and client using a `.env` file at the root of the project.
 
-Or enable telnet on Windows:
+| Variable | Default   | Description                                       |
+| -------- | --------- | ------------------------------------------------- |
+| PORT     | 8080      | Port the server listens on and client connects to |
+| HOST     | localhost | Host the client connects to                       |
 
-```bash
-dism /online /Enable-Feature /FeatureName:TelnetClient
-```
+*(Note: The example `.env.example` sets `PORT=9090` and `HOST=localhost`)*
 
 ---
 
 ## Architecture
 
+Currently, the architecture is a straightforward TCP client-server interaction:
 ```
-Client → TCP Listener → Broadcast Channel → All Connected Clients
+Client (os.Stdin) → TCP Dial → TCP Listener → Server Console Output
 ```
 
-TCP is a stream protocol. Relay uses newline delimited message framing to ensure messages arrive cleanly and never merge unexpectedly.
+- The **Server** listens on the configured TCP port. For each connected client, it spawns a goroutine that reads from the connection into a 1024-byte buffer in a loop and prints the received bytes to the console.
+- The **Client** dials the configured host and port, reads input from `os.Stdin` using a scanner, and writes the raw text directly to the TCP connection.
+
+*Note: Broadcasting, channels, and message framing are not yet implemented.*
 
 ---
 
 ## Roadmap
 
-- [x] TCP server
-- [x] Client test utility
-- [ ] Broadcast to all connected clients
+### Done
+- [x] TCP server (accepts connections and logs incoming data)
+- [x] Client test utility (reads from stdin and sends to server)
+- [x] Configuration loading via `.env` files
+
+### Not Yet Implemented
+- [ ] Broadcast messages to all connected clients
 - [ ] Message framing
+- [ ] Concurrent safe connection management
 - [ ] Graceful disconnect and reconnect handling
-- [ ] Tests
-- [ ] Benchmarks
+- [ ] Tests and Benchmarks
 - [ ] WebSocket transport
 - [ ] Room based messaging
 - [ ] Authentication and rate limiting
@@ -103,7 +128,8 @@ TCP is a stream protocol. Relay uses newline delimited message framing to ensure
 
 ## Built with
 
-Go
+- Go 1.26.2
+- [godotenv](https://github.com/joho/godotenv)
 
 ---
 
