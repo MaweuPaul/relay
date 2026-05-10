@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Port string
+	Host string
 }
 
 func Load() *Config {
@@ -18,13 +19,15 @@ func Load() *Config {
 	}
 	return &Config{
 		Port: getEnv("PORT", "8080"),
+		Host: getEnv("HOST", "localhost"),
 	}
 }
 
-func getEnv(key, defaultString string) string {
+func getEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
-		value = defaultString
+		log.Printf("%s not set in .env, using default: %s\n", key, defaultValue)
+		return defaultValue
 	}
 	return value
 }
