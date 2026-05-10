@@ -9,10 +9,10 @@ Built in Go. Concurrent by default. Drop it into any application that needs real
 ## Quick Start
 
 ```go
-import "github.com/yourname/relay"
+import "github.com/MaweuPaul/relay"
 
 server := relay.NewServer()
-server.Listen(":8080")
+server.Listen(":9090")
 ```
 
 That's it. Your app has messaging.
@@ -40,6 +40,7 @@ That's it. Your app has messaging.
 
 ```bash
 git clone https://github.com/MaweuPaul/relay.git
+cd relay
 cp .env.example .env
 go run main.go
 ```
@@ -75,14 +76,28 @@ dism /online /Enable-Feature /FeatureName:TelnetClient
 
 ---
 
+## Architecture
+
+```
+Client → TCP Listener → Broadcast Channel → All Connected Clients
+```
+
+TCP is a stream protocol. Relay uses newline delimited message framing to ensure messages arrive cleanly and never merge unexpectedly.
+
+---
+
 ## Roadmap
 
 - [x] TCP server
 - [x] Client test utility
 - [ ] Broadcast to all connected clients
-- [ ] WebSocket support
+- [ ] Message framing
+- [ ] Graceful disconnect and reconnect handling
+- [ ] Tests
+- [ ] Benchmarks
+- [ ] WebSocket transport
 - [ ] Room based messaging
-- [ ] Rate limiting
+- [ ] Authentication and rate limiting
 - [ ] JavaScript and Python client SDKs
 
 ---
