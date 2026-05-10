@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"main.go/config"
+	"github.com/MaweuPaul/relay/config"
 )
 
 func main() {
@@ -28,8 +28,24 @@ func main() {
 
 		}
 		fmt.Println("Client connected")
-		conn.Close()
+		go handleClient(conn)
 
 	}
 
+}
+
+func handleClient(conn net.Conn) {
+	defer conn.Close()
+
+	buf := make([]byte, 1024)
+
+	for {
+		n, err := conn.Read(buf)
+		if err != nil {
+			log.Println("Error reading from client:", err)
+			return
+		}
+		message := string(buf[:n])
+		fmt.Println("Received message from client:", message)
+	}
 }
