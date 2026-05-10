@@ -7,23 +7,24 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type Config struct{ Port string }
+type Config struct {
+	Port string
+}
 
 func Load() *Config {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("No .env file found ,using default values")
+		log.Fatal("Error loading .env file . Make sure it exists and is properly formatted. Using default values")
 	}
 	return &Config{
-		Port: getEnv("PORT", "9090"),
+		Port: getEnv("PORT", "8080"),
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-
+func getEnv(key, defaultString string) string {
 	value := os.Getenv(key)
 	if value == "" {
-		return defaultValue
+		value = defaultString
 	}
 	return value
 }
