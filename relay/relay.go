@@ -6,17 +6,21 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/MaweuPaul/relay/config"
 )
 
 type Server struct {
-	cfg *config.Config
+	cfg     *config.Config
+	clients map[net.Conn]bool
+	mu      sync.Mutex
 }
 
 func NewServer() *Server {
 	return &Server{
-		cfg: config.Load(),
+		cfg:     config.Load(),
+		clients: make(map[net.Conn]bool),
 	}
 }
 
@@ -37,17 +41,40 @@ func (s *Server) Listen() error {
 	}
 }
 
-func (s *Server) handleClient(conn net.Conn) {
-	defer conn.Close()
-	buf := make([]byte, 1024)
-	for {
-		n, err := conn.Read(buf)
-		if err != nil {
-			log.Println("Error reading from client:", err)
-			return
+func (s *Server) register(conn net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.clients[conn] = true
+}
+
+func (s *Server) unregister(conn net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.clients, conn)
+	conn.Close()
+}
+
+func (s *Server) broadcast(message string, sender net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for client := range s.clients {
+		if client != sender {
+			client.Write([]byte(message + "\n"))
 		}
-		fmt.Println("Received message from client:", string(buf[:n]))
 	}
+}
+
+func (s *Server) handleClient(conn net.Conn) {
+	s.register(conn)
+	defer s.unregister(conn)
+
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		message := scanner.Text()
+		fmt.Println("Received message from client:", message)
+		s.broadcast(message, conn)
+	}
+	fmt.Println("Client disconnected")
 }
 
 type Client struct {
@@ -68,10 +95,18 @@ func (c *Client) Connect() error {
 	defer conn.Close()
 	fmt.Println("Connected to Relay!")
 
+	// goroutine to receive incoming messages from server
+	go func() {
+		scanner := bufio.NewScanner(conn)
+		for scanner.Scan() {
+			fmt.Println(scanner.Text())
+		}
+	}()
+
+	// send outgoing messages to server
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
-		text := scanner.Text()
-		conn.Write([]byte(text))
+		conn.Write([]byte(scanner.Text() + "\n"))
 	}
 	return nil
 }
