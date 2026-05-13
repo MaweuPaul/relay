@@ -6,21 +6,20 @@ import (
 	"log"
 	"net"
 	"os"
-	"sync"
 
+	"github.com/MaweuPaul/relay/broadcast"
 	"github.com/MaweuPaul/relay/config"
 )
 
 type Server struct {
-	cfg     *config.Config
-	clients map[net.Conn]bool
-	mu      sync.Mutex
+	cfg *config.Config
+	hub *broadcast.Hub
 }
 
 func NewServer() *Server {
 	return &Server{
-		cfg:     config.Load(),
-		clients: make(map[net.Conn]bool),
+		cfg: config.Load(),
+		hub: broadcast.NewHub(),
 	}
 }
 
@@ -41,38 +40,15 @@ func (s *Server) Listen() error {
 	}
 }
 
-func (s *Server) register(conn net.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.clients[conn] = true
-}
-
-func (s *Server) unregister(conn net.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.clients, conn)
-	conn.Close()
-}
-
-func (s *Server) broadcast(message string, sender net.Conn) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for client := range s.clients {
-		if client != sender {
-			client.Write([]byte(message + "\n"))
-		}
-	}
-}
-
 func (s *Server) handleClient(conn net.Conn) {
-	s.register(conn)
-	defer s.unregister(conn)
+	s.hub.Register(conn)
+	defer s.hub.Unregister(conn)
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		message := scanner.Text()
 		fmt.Println("Received message from client:", message)
-		s.broadcast(message, conn)
+		s.hub.Broadcast(message, conn)
 	}
 	fmt.Println("Client disconnected")
 }
