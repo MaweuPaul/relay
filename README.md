@@ -1,8 +1,8 @@
 # Relay
 
-> A basic TCP server that receives messages from clients and logs them to the console.
+> Takes a message from one client. Sends it to everyone else. That's it.
 
-Built in Go.
+Built in Go. Concurrent by default. Drop it into any application that needs real-time messaging.
 
 ---
 
@@ -23,7 +23,6 @@ import (
 
 func main() {
 	server := relay.NewServer()
-	// Listen() reads the PORT from your environment or defaults to 8080
 	if err := server.Listen(); err != nil {
 		log.Fatal(err)
 	}
@@ -43,7 +42,6 @@ import (
 
 func main() {
 	client := relay.NewClient()
-	// Connect() dials HOST:PORT from your environment
 	if err := client.Connect(); err != nil {
 		log.Fatal(err)
 	}
@@ -66,59 +64,76 @@ git clone https://github.com/MaweuPaul/relay.git
 cd relay
 cp .env.example .env
 
-# Run the server
+# Terminal 1 — run the server
 go run cmd/server/main.go
-```
 
-In a separate terminal, run the test client:
+# Terminal 2 — run a client
+go run cmd/client/main.go
 
-```bash
-# Run the client
+# Terminal 3 — run another client
 go run cmd/client/main.go
 ```
 
-Type a message in the client terminal and hit enter. You should see it appear in the server terminal as `Received message from client: <message>`.
+Type a message in one client terminal. It broadcasts to all other connected clients.
 
-### Environment Variables
-
-Configure your server and client using a `.env` file at the root of the project.
+### Environment variables
 
 | Variable | Default   | Description                                       |
 | -------- | --------- | ------------------------------------------------- |
-| PORT     | 8080      | Port the server listens on and client connects to |
+| PORT     | 9090      | Port the server listens on and client connects to |
 | HOST     | localhost | Host the client connects to                       |
 
-*(Note: The example `.env.example` sets `PORT=9090` and `HOST=localhost`)*
+### Testing the connection
+
+**Mac/Linux:**
+
+```bash
+telnet localhost 9090
+```
+
+**Windows — run the built in test client:**
+
+```bash
+go run cmd/client/main.go
+```
+
+Or enable telnet on Windows:
+
+```bash
+dism /online /Enable-Feature /FeatureName:TelnetClient
+```
 
 ---
 
 ## Architecture
 
-Currently, the architecture is a straightforward TCP client-server interaction:
 ```
-Client (os.Stdin) → TCP Dial → TCP Listener → Server Console Output
+Client → TCP Listener → Broadcast Hub → All Connected Clients
 ```
 
-- The **Server** listens on the configured TCP port. For each connected client, it spawns a goroutine that reads from the connection into a 1024-byte buffer in a loop and prints the received bytes to the console.
-- The **Client** dials the configured host and port, reads input from `os.Stdin` using a scanner, and writes the raw text directly to the TCP connection.
+- The **Server** accepts TCP connections. Each client gets its own goroutine.
+- The **Broadcast Hub** maintains the list of connected clients and distributes messages. Protected by a mutex for concurrent safe access.
+- The **Client** connects via TCP, sends messages from stdin, and receives broadcasts from the server in a separate goroutine.
 
-*Note: Broadcasting, channels, and message framing are not yet implemented.*
+TCP is a stream protocol. Relay uses newline delimited message framing to ensure messages arrive cleanly and never merge unexpectedly.
 
 ---
 
 ## Roadmap
 
-### Done
-- [x] TCP server (accepts connections and logs incoming data)
-- [x] Client test utility (reads from stdin and sends to server)
-- [x] Configuration loading via `.env` files
+### Foundation
 
-### Not Yet Implemented
-- [ ] Broadcast messages to all connected clients
+- [x] TCP server
+- [x] Client test utility
+- [x] Broadcast to all connected clients
+- [x] Concurrent safe connection management
 - [ ] Message framing
-- [ ] Concurrent safe connection management
 - [ ] Graceful disconnect and reconnect handling
-- [ ] Tests and Benchmarks
+- [ ] Tests
+- [ ] Benchmarks
+
+### Expansion
+
 - [ ] WebSocket transport
 - [ ] Room based messaging
 - [ ] Authentication and rate limiting
